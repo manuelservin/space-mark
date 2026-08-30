@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-brand: var(--brand);
+  --font-sans: 'Geist', sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+}
+:root {
+  color-scheme: light;
+  /* Paleta oficial Space Mark */
+  --cream: #fef6c5;
+  --tan: #caba8a;
+  --brown: #583929;
+  --blue: #d1dffc;
+  --maroon: #8b1819;
+  --olive: #677544;
+  --background: var(--cream);
+  --foreground: var(--brown);
+  --card: var(--cream);
+  --card-foreground: var(--brown);
+  --primary: var(--olive);
+  --primary-foreground: var(--cream);
+  --secondary: var(--tan);
+  --secondary-foreground: var(--brown);
+  --muted: var(--blue);
+  --muted-foreground: color-mix(in srgb, var(--brown) 72%, var(--tan));
+  --border: var(--tan);
+  --accent: var(--maroon);
+  --accent-foreground: var(--cream);
+  --destructive: var(--maroon);
+  --brand: var(--olive);
+}
+* { @apply border-border; }
+html { @apply bg-brand; scroll-behavior: smooth; }
+body { @apply bg-brand text-primary-foreground; }
