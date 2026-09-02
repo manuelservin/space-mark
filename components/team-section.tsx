@@ -11,8 +11,8 @@ const TEAM_MEMBERS: TeamMember[] = [
   { name: 'Manuel', role: 'Responsable de obra', src: '/Manuel.jpeg' },
   { name: 'Martín', role: 'Director creativo', src: '/Martín.jpeg' },
   { name: 'Nahuel', role: 'Finanzas', src: '/Nahuel.jpeg' },
-  { name: 'Natalia', role: 'Interiorismo', src: '/Natalia.jpeg' },
-  { name: 'Natalia', role: 'Comunicación', src: '/Natalia2.jpeg' },
+  { name: 'Natalia', role: 'Comunicación', src: '/Natalia.jpeg' },
+  { name: 'Natalia', role: 'Interiorismo', src: '/Natalia2.jpeg' },
   { name: 'Noelia', role: 'Iluminación', src: '/Noelia.jpeg' },
 ]
 
