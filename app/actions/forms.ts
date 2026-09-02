@@ -4,8 +4,8 @@ import { randomUUID } from 'crypto'
 import { and, desc, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { auth } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { getAuth } from '@/lib/auth'
+import { getDb, rethrowDatabaseError } from '@/lib/db'
 import { formResponses, forms } from '@/lib/db/schema'
 import { parseAnswers } from '@/lib/forms/parse-answers'
 import { toFormRecord } from '@/lib/forms/parse-fields'
@@ -18,7 +18,7 @@ const revalidateFormPaths = () => {
 }
 
 const requireAdmin = async () => {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await getAuth().api.getSession({ headers: await headers() })
   if (!session?.user) {
     throw new Error('Necesitás iniciar sesión para gestionar formularios.')
   }
@@ -60,12 +60,12 @@ export const saveForm = async (input: {
     updatedAt: new Date(),
   }
   if (input.id !== null) {
-    const updated = await db.update(forms).set(values).where(eq(forms.id, input.id)).returning({ id: forms.id })
+    const updated = await getDb().update(forms).set(values).where(eq(forms.id, input.id)).returning({ id: forms.id })
     if (updated.length === 0) {
       throw new Error('No se encontró el formulario para actualizar.')
     }
   } else {
-    await db.insert(forms).values({ id, ...values })
+    await getDb().insert(forms).values({ id, ...values })
   }
   revalidateFormPaths()
   return id
@@ -76,8 +76,8 @@ export const deleteForm = async (id: string) => {
   if (id.length === 0) {
     throw new Error('Falta el id del formulario.')
   }
-  await db.delete(formResponses).where(eq(formResponses.formId, id))
-  const deleted = await db.delete(forms).where(eq(forms.id, id)).returning({ id: forms.id })
+  await getDb().delete(formResponses).where(eq(formResponses.formId, id))
+  const deleted = await getDb().delete(forms).where(eq(forms.id, id)).returning({ id: forms.id })
   if (deleted.length === 0) {
     throw new Error('No se encontró el formulario para eliminar.')
   }
@@ -85,19 +85,19 @@ export const deleteForm = async (id: string) => {
 }
 
 export const submitResponse = async (formId: string, answers: Record<string, string>) => {
-  const form = await db.select({ id: forms.id }).from(forms).where(and(eq(forms.id, formId), eq(forms.published, true))).limit(1)
+  const form = await getDb().select({ id: forms.id }).from(forms).where(and(eq(forms.id, formId), eq(forms.published, true))).limit(1)
   if (form.length === 0) {
     throw new Error('La encuesta no está disponible.')
   }
-  await db.insert(formResponses).values({ id: randomUUID(), formId, answers })
+  await getDb().insert(formResponses).values({ id: randomUUID(), formId, answers })
   revalidatePath('/admin')
   return { ok: true }
 }
 
 export const getAdminData = async (): Promise<{ forms: FormRecord[]; responses: FormResponseSummary[] }> => {
   await requireAdmin()
-  const allForms = await db.select().from(forms).orderBy(desc(forms.updatedAt))
-  const responses = await db.select({
+  const allForms = await getDb().select().from(forms).orderBy(desc(forms.updatedAt))
+  const responses = await getDb().select({
     id: formResponses.id,
     formId: formResponses.formId,
   }).from(formResponses).orderBy(desc(formResponses.createdAt))
@@ -109,7 +109,7 @@ export const getAdminData = async (): Promise<{ forms: FormRecord[]; responses: 
 
 export const clearAllResponses = async () => {
   await requireAdmin()
-  await db.delete(formResponses)
+  await getDb().delete(formResponses)
   revalidatePath('/admin')
 }
 
@@ -118,8 +118,8 @@ export const getResponsesForExport = async (): Promise<{
   responses: FormResponseRecord[]
 }> => {
   await requireAdmin()
-  const allForms = await db.select().from(forms).orderBy(desc(forms.updatedAt))
-  const rows = await db.select().from(formResponses).orderBy(formResponses.createdAt)
+  const allForms = await getDb().select().from(forms).orderBy(desc(forms.updatedAt))
+  const rows = await getDb().select().from(formResponses).orderBy(formResponses.createdAt)
   return {
     forms: allForms.map((row) => toFormRecord(row)),
     responses: rows.map((row) => ({
@@ -132,16 +132,20 @@ export const getResponsesForExport = async (): Promise<{
 }
 
 export const getPublishedForms = async (): Promise<PublishedFormSummary[]> => {
-  const rows = await db.select({
-    id: forms.id,
-    title: forms.title,
-    description: forms.description,
-  }).from(forms).where(eq(forms.published, true)).orderBy(desc(forms.updatedAt))
-  return rows
+  try {
+    const rows = await getDb().select({
+      id: forms.id,
+      title: forms.title,
+      description: forms.description,
+    }).from(forms).where(eq(forms.published, true)).orderBy(desc(forms.updatedAt))
+    return rows
+  } catch (error) {
+    return rethrowDatabaseError(error)
+  }
 }
 
 export const getSurveyForm = async (id: string): Promise<FormRecord | null> => {
-  const rows = await db.select().from(forms).where(eq(forms.id, id)).limit(1)
+  const rows = await getDb().select().from(forms).where(eq(forms.id, id)).limit(1)
   if (rows.length === 0) {
     return null
   }
@@ -149,7 +153,7 @@ export const getSurveyForm = async (id: string): Promise<FormRecord | null> => {
   if (form.published) {
     return form
   }
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await getAuth().api.getSession({ headers: await headers() })
   if (session?.user) {
     return form
   }

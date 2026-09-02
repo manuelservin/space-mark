@@ -1,7 +1,9 @@
 export const getRequiredEnv = (name: string): string => {
   const value = process.env[name]
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`Falta la variable de entorno ${name}. Copiá .env.example a .env.local y completá el valor.`)
+    throw new Error(
+      `Falta la variable de entorno ${name}. Definila en Vercel (Settings → Environment Variables) o en .env.local.`,
+    )
   }
   return value
 }
