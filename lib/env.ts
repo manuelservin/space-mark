@@ -9,7 +9,12 @@ export const getRequiredEnv = (name: string): string => {
 }
 
 export const getDatabaseUrl = (): string => {
-  const value = getRequiredEnv('DATABASE_URL')
+  const value = process.env.DATABASE_URL || process.env.POSTGRES_URL
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(
+      'Falta la variable de entorno DATABASE_URL. Neon puede exponerla como DATABASE_URL o POSTGRES_URL.',
+    )
+  }
   let parsed: URL
   try {
     parsed = new URL(value)
