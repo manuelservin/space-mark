@@ -5,7 +5,7 @@ import { and, desc, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, rethrowDatabaseError } from '@/lib/db'
 import { formResponses, forms } from '@/lib/db/schema'
 import { parseAnswers } from '@/lib/forms/parse-answers'
 import { toFormRecord } from '@/lib/forms/parse-fields'
@@ -132,12 +132,16 @@ export const getResponsesForExport = async (): Promise<{
 }
 
 export const getPublishedForms = async (): Promise<PublishedFormSummary[]> => {
-  const rows = await db.select({
-    id: forms.id,
-    title: forms.title,
-    description: forms.description,
-  }).from(forms).where(eq(forms.published, true)).orderBy(desc(forms.updatedAt))
-  return rows
+  try {
+    const rows = await db.select({
+      id: forms.id,
+      title: forms.title,
+      description: forms.description,
+    }).from(forms).where(eq(forms.published, true)).orderBy(desc(forms.updatedAt))
+    return rows
+  } catch (error) {
+    rethrowDatabaseError(error)
+  }
 }
 
 export const getSurveyForm = async (id: string): Promise<FormRecord | null> => {

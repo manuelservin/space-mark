@@ -1,12 +1,5 @@
 import { RoundedImage } from '@/components/rounded-image'
 
-const SPACEBOX_INCLUDES = [
-  'Visita técnica, presencial o virtual',
-  'Moodboard de tendencias',
-  'Distribución 2D',
-  'Paleta de colores',
-  'Presupuesto estimado por etapas',
-]
 
 export const ExperienceSection = () => {
   return (
@@ -40,14 +33,6 @@ export const ExperienceSection = () => {
             <p className="mt-3 leading-7 text-primary-foreground/75">
               Diagnóstico + masterplan de espacios, o Smart Design Express. Un solo paquete para pasar de la lectura del lugar a un plan concreto.
             </p>
-            <ul className="mt-5 space-y-2 text-sm text-primary-foreground/80">
-              {SPACEBOX_INCLUDES.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
-                  {item}
-                </li>
-              ))}
-            </ul>
           </article>
         </div>
       </div>
