@@ -7,11 +7,36 @@ import { getDatabaseUrl } from '@/lib/env'
 // En Windows, Node a veces resuelve primero IPv6 y Neon falla con ENOTFOUND.
 setDefaultResultOrder('ipv4first')
 
-export const pool = new Pool({
-  connectionString: getDatabaseUrl(),
-  connectionTimeoutMillis: 10000,
-})
-export const db = drizzle(pool, { schema })
+let poolInstance: Pool | null = null
+
+const createPool = (): Pool => {
+  return new Pool({
+    connectionString: getDatabaseUrl(),
+    connectionTimeoutMillis: 10000,
+  })
+}
+
+export const getPool = (): Pool => {
+  if (poolInstance === null) {
+    poolInstance = createPool()
+  }
+  return poolInstance
+}
+
+const createDb = () => {
+  return drizzle(getPool(), { schema })
+}
+
+type AppDb = ReturnType<typeof createDb>
+
+let dbInstance: AppDb | null = null
+
+export const getDb = (): AppDb => {
+  if (dbInstance === null) {
+    dbInstance = createDb()
+  }
+  return dbInstance
+}
 
 const collectErrorCodes = (error: unknown): string[] => {
   const codes: string[] = []

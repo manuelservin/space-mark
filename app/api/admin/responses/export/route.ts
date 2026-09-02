@@ -1,10 +1,12 @@
 import { headers } from 'next/headers'
-import { auth } from '@/lib/auth'
+import { getAuth } from '@/lib/auth'
 import { getResponsesForExport } from '@/app/actions/forms'
 import { buildResponsesWorkbook } from '@/lib/forms/export-workbook'
 
+export const dynamic = 'force-dynamic'
+
 export const GET = async () => {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await getAuth().api.getSession({ headers: await headers() })
   if (!session?.user) {
     return new Response('Necesitás iniciar sesión para exportar respuestas.', { status: 401 })
   }

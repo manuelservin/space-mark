@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { BarChart3, ChevronRight, Database, Orbit, Sparkles } from 'lucide-react'
 import { getPublishedForms } from '@/app/actions/forms'
 import { ContactSection } from '@/components/contact-section'
