@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { submitResponse } from '@/app/actions/forms'
 import type { FormRecord } from '@/lib/forms/types'
@@ -52,6 +53,14 @@ export default function SurveyForm(props: SurveyFormProps) {
           <p className="font-mono text-xs uppercase tracking-[.2em] text-accent">Gracias por participar</p>
           <h1 className="mt-4 text-5xl font-semibold tracking-tight">Tu respuesta ya está en órbita.</h1>
           <p className="mt-5 leading-7 text-muted-foreground">Cada respuesta ayuda a SpaceMark a encontrar una señal más clara.</p>
+          <a
+            href="/"
+            aria-label="Volver a la landing de SpaceMark"
+            className="mt-8 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-card"
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Volver a SpaceMark
+          </a>
         </div>
       </main>
     )
