@@ -3,10 +3,10 @@
 import { Camera, Download, Images, Loader2, Share2, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { LAUNCH_AI_MAX_TRIES, LAUNCH_EVENT } from '@/lib/launch/config'
-import { cropSelfie, dataUrlToFile, drawFrozenSelfie, loadImage } from '@/lib/launch/frost'
+import { cropSelfie, dataUrlToFile, drawFrozenSelfie, loadImage, loadLaunchLogo } from '@/lib/launch/frost'
 
 const TRIES_KEY = 'lanzamiento-ia-intentos'
-const LABEL = `Congelado hasta el ${LAUNCH_EVENT.dateLabel.toLowerCase()}`
+const LABEL = 'Congelado por'
 const DOWNLOAD_NAME = 'congelado-07-11.jpg'
 
 const readTries = (): number => {
@@ -41,6 +41,7 @@ export const FrozenSelfie = () => {
 
   useEffect(() => {
     setTries(readTries())
+    void loadLaunchLogo()
     setCanShare(typeof navigator.share === 'function' && typeof navigator.canShare === 'function')
     return () => streamRef.current?.getTracks().forEach((track) => track.stop())
   }, [])
@@ -61,11 +62,12 @@ export const FrozenSelfie = () => {
     setCameraOpen(false)
   }
 
-  const freeze = (source: HTMLImageElement | HTMLVideoElement, mirror: boolean) => {
+  const freeze = async (source: HTMLImageElement | HTMLVideoElement, mirror: boolean) => {
     setAiImage(null)
     setShowing('filtro')
-    cropped.current = cropSelfie(source, { mirror })
-    setFrozen(drawFrozenSelfie(cropped.current, { label: LABEL, applyIce: true }))
+    const photo = cropSelfie(source, { mirror })
+    cropped.current = photo
+    setFrozen(drawFrozenSelfie(photo, { label: LABEL, logo: await loadLaunchLogo(), applyIce: true }))
   }
 
   // Cámara en vivo dentro de la página: no depende del selector de archivos de iOS.
@@ -93,13 +95,13 @@ export const FrozenSelfie = () => {
     setCameraStarting(false)
   }
 
-  const takePhoto = () => {
+  const takePhoto = async () => {
     const video = videoRef.current
     if (video === null || video.videoWidth === 0) {
       return
     }
     try {
-      freeze(video, true)
+      await freeze(video, true)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No pudimos procesar la foto.')
     }
@@ -115,7 +117,7 @@ export const FrozenSelfie = () => {
     setError('')
     stopCamera()
     try {
-      freeze(await loadImage(file), false)
+      await freeze(await loadImage(file), false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No pudimos procesar la foto.')
     }
@@ -144,7 +146,7 @@ export const FrozenSelfie = () => {
       const image = new Image()
       image.src = payload.image
       await image.decode()
-      setAiImage(drawFrozenSelfie(image, { label: LABEL, applyIce: false }))
+      setAiImage(drawFrozenSelfie(image, { label: LABEL, logo: await loadLaunchLogo(), applyIce: false }))
       setShowing('ia')
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'La IA no pudo congelarte esta vez.'

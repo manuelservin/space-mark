@@ -243,7 +243,29 @@ export const cropSelfie = (source: HTMLImageElement | HTMLVideoElement, options:
   return canvas
 }
 
-export const drawFrozenSelfie = (source: HTMLCanvasElement | HTMLImageElement, options: { label: string; applyIce: boolean }): string => {
+const LOGO_SRC = '/logo-lanzamiento.png'
+let logoPromise: Promise<HTMLImageElement | null> | null = null
+
+// El logo se carga una sola vez; si falla, el marco usa el nombre en texto.
+export const loadLaunchLogo = (): Promise<HTMLImageElement | null> => {
+  if (logoPromise === null) {
+    logoPromise = new Promise((resolve) => {
+      const image = new Image()
+      image.onload = () => resolve(image)
+      image.onerror = () => resolve(null)
+      image.src = LOGO_SRC
+    })
+  }
+  return logoPromise
+}
+
+const BAR_HEIGHT = 140
+const LOGO_HEIGHT = 112
+
+export const drawFrozenSelfie = (
+  source: HTMLCanvasElement | HTMLImageElement,
+  options: { label: string; logo: HTMLImageElement | null; applyIce: boolean },
+): string => {
   const canvas = document.createElement('canvas')
   canvas.width = SELFIE_WIDTH
   canvas.height = SELFIE_HEIGHT
@@ -271,16 +293,27 @@ export const drawFrozenSelfie = (source: HTMLCanvasElement | HTMLImageElement, o
     drawSnow(ctx, SELFIE_WIDTH, SELFIE_HEIGHT, random, { count: 140, scale: 1.4 })
   }
 
+  // Firma: "Congelado por" + logo, para que se lea "Congelado por Space Mark".
+  const middle = SELFIE_HEIGHT - BAR_HEIGHT / 2
   ctx.save()
   ctx.fillStyle = 'rgba(16, 38, 66, 0.72)'
-  ctx.fillRect(0, SELFIE_HEIGHT - 120, SELFIE_WIDTH, 120)
+  ctx.fillRect(0, SELFIE_HEIGHT - BAR_HEIGHT, SELFIE_WIDTH, BAR_HEIGHT)
   ctx.fillStyle = '#ffffff'
   ctx.font = '600 44px "Geist", system-ui, sans-serif'
   ctx.textBaseline = 'middle'
-  ctx.fillText(options.label, 48, SELFIE_HEIGHT - 60)
+  ctx.fillText(options.label, 48, middle)
+  const logoX = 48 + ctx.measureText(options.label).width + 14
+  if (options.logo !== null) {
+    const logoWidth = (options.logo.naturalWidth / options.logo.naturalHeight) * LOGO_HEIGHT
+    ctx.drawImage(options.logo, logoX, middle - LOGO_HEIGHT / 2, logoWidth, LOGO_HEIGHT)
+  } else {
+    ctx.fillStyle = '#fef6c5'
+    ctx.fillText('Space Mark', logoX, middle)
+    ctx.fillStyle = '#ffffff'
+  }
   ctx.textAlign = 'right'
   ctx.font = '500 40px "Geist Mono", ui-monospace, monospace'
-  ctx.fillText('-18 °C', SELFIE_WIDTH - 48, SELFIE_HEIGHT - 60)
+  ctx.fillText('-18 °C', SELFIE_WIDTH - 48, middle)
   ctx.restore()
 
   return canvas.toDataURL('image/jpeg', 0.88)
