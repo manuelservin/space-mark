@@ -244,14 +244,72 @@ export const cropSelfie = (source: HTMLImageElement | HTMLVideoElement, options:
 }
 
 const LOGO_SRC = '/logo-lanzamiento.png'
-let logoPromise: Promise<HTMLImageElement | null> | null = null
 
-// El logo se carga una sola vez; si falla, el marco usa el nombre en texto.
-export const loadLaunchLogo = (): Promise<HTMLImageElement | null> => {
+export type LaunchLogo = {
+  image: HTMLImageElement
+  // Recorte sin el margen transparente del PNG.
+  x: number
+  y: number
+  width: number
+  height: number
+  // Franja de las letras (sin la cola de la "R"), relativa al recorte.
+  bandCenter: number
+  bandHeight: number
+}
+
+// Mide dónde está la tinta del logo: el bounding box y la franja de filas más densas (las letras).
+const measureLogo = (image: HTMLImageElement): LaunchLogo => {
+  const canvas = document.createElement('canvas')
+  canvas.width = image.naturalWidth
+  canvas.height = image.naturalHeight
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  const full = { image, x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight, bandCenter: image.naturalHeight / 2, bandHeight: image.naturalHeight }
+  if (ctx === null) {
+    return full
+  }
+  ctx.drawImage(image, 0, 0)
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+  const rows: number[] = []
+  let left = canvas.width
+  let right = -1
+  for (let y = 0; y < canvas.height; y += 1) {
+    let count = 0
+    for (let x = 0; x < canvas.width; x += 1) {
+      if (data[(y * canvas.width + x) * 4 + 3] > 40) {
+        count += 1
+        left = Math.min(left, x)
+        right = Math.max(right, x)
+      }
+    }
+    rows.push(count)
+  }
+  const inked = rows.map((count, y) => (count > 0 ? y : -1)).filter((y) => y >= 0)
+  if (inked.length === 0) {
+    return full
+  }
+  const peak = Math.max(...rows)
+  const band = rows.map((count, y) => (count >= peak * 0.3 ? y : -1)).filter((y) => y >= 0)
+  const top = inked[0]
+  const bottom = inked[inked.length - 1]
+  return {
+    image,
+    x: left,
+    y: top,
+    width: right - left + 1,
+    height: bottom - top + 1,
+    bandCenter: (band[0] + band[band.length - 1]) / 2 - top,
+    bandHeight: band[band.length - 1] - band[0] + 1,
+  }
+}
+
+let logoPromise: Promise<LaunchLogo | null> | null = null
+
+// El logo se carga y se mide una sola vez; si falla, el marco usa el nombre en texto.
+export const loadLaunchLogo = (): Promise<LaunchLogo | null> => {
   if (logoPromise === null) {
     logoPromise = new Promise((resolve) => {
       const image = new Image()
-      image.onload = () => resolve(image)
+      image.onload = () => resolve(measureLogo(image))
       image.onerror = () => resolve(null)
       image.src = LOGO_SRC
     })
@@ -260,11 +318,12 @@ export const loadLaunchLogo = (): Promise<HTMLImageElement | null> => {
 }
 
 const BAR_HEIGHT = 140
-const LOGO_HEIGHT = 112
+// Alto de las letras del logo en el marco (la cola de la "R" sobresale hacia abajo).
+const LOGO_LETTER_HEIGHT = 50
 
 export const drawFrozenSelfie = (
   source: HTMLCanvasElement | HTMLImageElement,
-  options: { label: string; logo: HTMLImageElement | null; applyIce: boolean },
+  options: { label: string; logo: LaunchLogo | null; applyIce: boolean },
 ): string => {
   const canvas = document.createElement('canvas')
   canvas.width = SELFIE_WIDTH
@@ -302,10 +361,13 @@ export const drawFrozenSelfie = (
   ctx.font = '600 44px "Geist", system-ui, sans-serif'
   ctx.textBaseline = 'middle'
   ctx.fillText(options.label, 48, middle)
-  const logoX = 48 + ctx.measureText(options.label).width + 14
+  const logoX = 48 + ctx.measureText(options.label).width + 20
   if (options.logo !== null) {
-    const logoWidth = (options.logo.naturalWidth / options.logo.naturalHeight) * LOGO_HEIGHT
-    ctx.drawImage(options.logo, logoX, middle - LOGO_HEIGHT / 2, logoWidth, LOGO_HEIGHT)
+    // Centramos la franja de las letras con el texto, no la imagen entera.
+    const logo = options.logo
+    const scale = LOGO_LETTER_HEIGHT / logo.bandHeight
+    const top = middle - logo.bandCenter * scale
+    ctx.drawImage(logo.image, logo.x, logo.y, logo.width, logo.height, logoX, top, logo.width * scale, logo.height * scale)
   } else {
     ctx.fillStyle = '#fef6c5'
     ctx.fillText('Space Mark', logoX, middle)
