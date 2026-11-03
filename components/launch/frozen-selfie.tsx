@@ -1,6 +1,6 @@
 'use client'
 
-import { Camera, Download, Loader2, Share2, Sparkles } from 'lucide-react'
+import { Camera, Download, Images, Loader2, Share2, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { LAUNCH_AI_MAX_TRIES, LAUNCH_EVENT } from '@/lib/launch/config'
 import { cropSelfie, dataUrlToFile, drawFrozenSelfie, loadImage } from '@/lib/launch/frost'
@@ -26,7 +26,8 @@ const writeTries = (value: number) => {
 }
 
 export const FrozenSelfie = () => {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const cropped = useRef<HTMLCanvasElement | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
   const [aiImage, setAiImage] = useState<string | null>(null)
@@ -35,11 +36,75 @@ export const FrozenSelfie = () => {
   const [tries, setTries] = useState(0)
   const [error, setError] = useState('')
   const [canShare, setCanShare] = useState(false)
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraStarting, setCameraStarting] = useState(false)
 
   useEffect(() => {
     setTries(readTries())
     setCanShare(typeof navigator.share === 'function' && typeof navigator.canShare === 'function')
+    return () => streamRef.current?.getTracks().forEach((track) => track.stop())
   }, [])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (cameraOpen && video !== null && streamRef.current !== null) {
+      video.srcObject = streamRef.current
+      video.play().catch(() => {
+        // iOS a veces rechaza play() aunque el video igual arranca por autoPlay.
+      })
+    }
+  }, [cameraOpen])
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    setCameraOpen(false)
+  }
+
+  const freeze = (source: HTMLImageElement | HTMLVideoElement, mirror: boolean) => {
+    setAiImage(null)
+    setShowing('filtro')
+    cropped.current = cropSelfie(source, { mirror })
+    setFrozen(drawFrozenSelfie(cropped.current, { label: LABEL, applyIce: true }))
+  }
+
+  // Cámara en vivo dentro de la página: no depende del selector de archivos de iOS.
+  const openCamera = async () => {
+    setError('')
+    if (typeof navigator.mediaDevices?.getUserMedia !== 'function') {
+      setError('Este navegador no deja abrir la cámara acá. Usá el botón de abajo.')
+      return
+    }
+    setCameraStarting(true)
+    try {
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false,
+      })
+      setCameraOpen(true)
+    } catch (cause) {
+      const denied = cause instanceof DOMException && cause.name === 'NotAllowedError'
+      setError(
+        denied
+          ? 'No tenemos permiso para usar la cámara. Habilitalo en los ajustes del navegador o usá el botón de abajo.'
+          : 'No pudimos abrir la cámara. Usá el botón de abajo.',
+      )
+    }
+    setCameraStarting(false)
+  }
+
+  const takePhoto = () => {
+    const video = videoRef.current
+    if (video === null || video.videoWidth === 0) {
+      return
+    }
+    try {
+      freeze(video, true)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No pudimos procesar la foto.')
+    }
+    stopCamera()
+  }
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -48,12 +113,9 @@ export const FrozenSelfie = () => {
       return
     }
     setError('')
-    setAiImage(null)
-    setShowing('filtro')
+    stopCamera()
     try {
-      const image = await loadImage(file)
-      cropped.current = cropSelfie(image)
-      setFrozen(drawFrozenSelfie(cropped.current, { label: LABEL, applyIce: true }))
+      freeze(await loadImage(file), false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No pudimos procesar la foto.')
     }
@@ -127,14 +189,35 @@ export const FrozenSelfie = () => {
   return (
     <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-start">
       <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-white/40 shadow-inner backdrop-blur">
-        {current === null ? (
+        {cameraOpen ? (
+          <>
+            <video ref={videoRef} autoPlay muted playsInline className="size-full -scale-x-100 object-cover" />
+            <button
+              type="button"
+              onClick={stopCamera}
+              aria-label="Cerrar cámara"
+              className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
+            >
+              <X size={20} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={takePhoto}
+              aria-label="Sacar foto"
+              className="absolute bottom-5 left-1/2 flex size-18 -translate-x-1/2 items-center justify-center rounded-full border-4 border-white bg-white/30 backdrop-blur active:scale-95"
+            >
+              <span className="size-13 rounded-full bg-white" />
+            </button>
+          </>
+        ) : current === null ? (
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
+            onClick={openCamera}
+            disabled={cameraStarting}
             className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center"
           >
             <span className="flex size-16 items-center justify-center rounded-full bg-white/80 shadow">
-              <Camera size={28} aria-hidden="true" />
+              {cameraStarting ? <Loader2 size={28} className="animate-spin" aria-hidden="true" /> : <Camera size={28} aria-hidden="true" />}
             </span>
             <span className="text-lg font-medium">Sacate una selfie</span>
             <span className="text-sm opacity-70">La congelamos al toque.</span>
@@ -152,15 +235,27 @@ export const FrozenSelfie = () => {
       </div>
 
       <div className="space-y-4">
-        <input ref={inputRef} type="file" accept="image/*" capture="user" onChange={handleFile} className="sr-only" tabIndex={-1} aria-hidden="true" />
-        {current === null ? (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1d3557] px-5 py-3 text-sm font-medium text-white"
-          >
-            <Camera size={16} aria-hidden="true" /> Abrir cámara
-          </button>
+        {/* Respaldo: un <label> abre el selector nativo (cámara o galería) en cualquier navegador, incluso en iOS. */}
+        <input id="selfie-file" type="file" accept="image/*" onChange={handleFile} className="sr-only" />
+        {cameraOpen ? (
+          <p className="text-center text-sm opacity-70">Mirá a la cámara y tocá el botón blanco.</p>
+        ) : current === null ? (
+          <>
+            <button
+              type="button"
+              onClick={openCamera}
+              disabled={cameraStarting}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1d3557] px-5 py-3.5 text-sm font-medium text-white disabled:opacity-60"
+            >
+              <Camera size={16} aria-hidden="true" /> {cameraStarting ? 'Abriendo cámara…' : 'Abrir cámara'}
+            </button>
+            <label
+              htmlFor="selfie-file"
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-current/25 px-5 py-3 text-sm font-medium"
+            >
+              <Images size={16} aria-hidden="true" /> Usar la cámara del celular o la galería
+            </label>
+          </>
         ) : (
           <button
             type="button"
@@ -172,7 +267,7 @@ export const FrozenSelfie = () => {
           </button>
         )}
 
-        {frozen === null ? null : (
+        {frozen === null || cameraOpen ? null : (
           <>
             <button
               type="button"
@@ -208,12 +303,16 @@ export const FrozenSelfie = () => {
               ) : null}
               <button
                 type="button"
-                onClick={() => inputRef.current?.click()}
+                onClick={openCamera}
+                disabled={cameraStarting}
                 className="flex flex-1 items-center justify-center gap-2 rounded-full border border-current/25 px-4 py-3 text-sm font-medium"
               >
                 <Camera size={16} aria-hidden="true" /> Sacar otra
               </button>
             </div>
+            <label htmlFor="selfie-file" className="block cursor-pointer text-center text-xs underline underline-offset-4 opacity-70">
+              O elegí una foto de la galería
+            </label>
           </>
         )}
 
