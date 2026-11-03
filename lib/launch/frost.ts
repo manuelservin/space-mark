@@ -224,7 +224,8 @@ export const loadImage = (file: Blob): Promise<HTMLImageElement> => {
 }
 
 // Recorta la foto a 4:5 (formato ideal para historias y WhatsApp).
-export const cropSelfie = (image: HTMLImageElement): HTMLCanvasElement => {
+// Con `mirror` se espeja como en la vista previa de la cámara frontal.
+export const cropSelfie = (source: HTMLImageElement | HTMLVideoElement, options: { mirror: boolean } = { mirror: false }): HTMLCanvasElement => {
   const canvas = document.createElement('canvas')
   canvas.width = SELFIE_WIDTH
   canvas.height = SELFIE_HEIGHT
@@ -232,7 +233,13 @@ export const cropSelfie = (image: HTMLImageElement): HTMLCanvasElement => {
   if (ctx === null) {
     throw new Error('Tu navegador no soporta canvas.')
   }
-  drawCover(ctx, image, image.naturalWidth, image.naturalHeight, SELFIE_WIDTH, SELFIE_HEIGHT)
+  const sourceWidth = source instanceof HTMLVideoElement ? source.videoWidth : source.naturalWidth
+  const sourceHeight = source instanceof HTMLVideoElement ? source.videoHeight : source.naturalHeight
+  if (options.mirror) {
+    ctx.translate(SELFIE_WIDTH, 0)
+    ctx.scale(-1, 1)
+  }
+  drawCover(ctx, source, sourceWidth, sourceHeight, SELFIE_WIDTH, SELFIE_HEIGHT)
   return canvas
 }
 
