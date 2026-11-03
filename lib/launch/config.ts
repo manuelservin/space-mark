@@ -1,11 +1,11 @@
 import type { FormField } from '@/lib/forms/types'
 
-// Datos del evento: editá acá hora y lugar cuando estén confirmados.
+// Datos del evento.
 export const LAUNCH_EVENT = {
-  startsAt: '2026-11-07T19:00:00-03:00',
+  startsAt: '2026-11-07T12:30:00-03:00',
   dateLabel: 'Sábado 07.11',
-  timeLabel: '19 h',
-  placeLabel: 'Lugar a confirmar',
+  timeLabel: '12:30 h',
+  placeLabel: 'Aula 20',
 }
 
 // Desde cuándo el "horno" empieza a precalentarse (marca -18 °C).

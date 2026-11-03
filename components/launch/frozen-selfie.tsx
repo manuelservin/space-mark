@@ -7,6 +7,7 @@ import { cropSelfie, dataUrlToFile, drawFrozenSelfie, loadImage } from '@/lib/la
 
 const TRIES_KEY = 'lanzamiento-ia-intentos'
 const LABEL = `Congelado hasta el ${LAUNCH_EVENT.dateLabel.toLowerCase()}`
+const DOWNLOAD_NAME = 'congelado-07-11.jpg'
 
 const readTries = (): number => {
   try {
@@ -93,11 +94,27 @@ export const FrozenSelfie = () => {
   const current = showing === 'ia' && aiImage !== null ? aiImage : frozen
   const triesLeft = Math.max(0, LAUNCH_AI_MAX_TRIES - tries)
 
+  const handleDownload = async () => {
+    if (current === null) {
+      return
+    }
+    // Un blob URL descarga mejor que un data URL (en iPhone el data URL abre la imagen en otra pestaña).
+    const file = await dataUrlToFile(current, DOWNLOAD_NAME)
+    const url = URL.createObjectURL(file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = DOWNLOAD_NAME
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }
+
   const handleShare = async () => {
     if (current === null) {
       return
     }
-    const file = await dataUrlToFile(current, 'congelado.jpg')
+    const file = await dataUrlToFile(current, DOWNLOAD_NAME)
     if (navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], text: `Me congelaron hasta el ${LAUNCH_EVENT.dateLabel} 🧊` })
@@ -136,13 +153,24 @@ export const FrozenSelfie = () => {
 
       <div className="space-y-4">
         <input ref={inputRef} type="file" accept="image/*" capture="user" onChange={handleFile} className="sr-only" tabIndex={-1} aria-hidden="true" />
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1d3557] px-5 py-3 text-sm font-medium text-white"
-        >
-          <Camera size={16} aria-hidden="true" /> {current === null ? 'Abrir cámara' : 'Sacar otra'}
-        </button>
+        {current === null ? (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1d3557] px-5 py-3 text-sm font-medium text-white"
+          >
+            <Camera size={16} aria-hidden="true" /> Abrir cámara
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={aiPending}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1d3557] px-5 py-3.5 text-sm font-medium text-white disabled:opacity-60"
+          >
+            <Download size={16} aria-hidden="true" /> Descargar imagen
+          </button>
+        )}
 
         {frozen === null ? null : (
           <>
@@ -178,11 +206,13 @@ export const FrozenSelfie = () => {
                   <Share2 size={16} aria-hidden="true" /> Compartir
                 </button>
               ) : null}
-              {current === null ? null : (
-                <a href={current} download="congelado.jpg" className="flex flex-1 items-center justify-center gap-2 rounded-full border border-current/25 px-4 py-3 text-sm font-medium">
-                  <Download size={16} aria-hidden="true" /> Descargar
-                </a>
-              )}
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-current/25 px-4 py-3 text-sm font-medium"
+              >
+                <Camera size={16} aria-hidden="true" /> Sacar otra
+              </button>
             </div>
           </>
         )}
