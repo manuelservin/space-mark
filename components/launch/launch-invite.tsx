@@ -137,9 +137,13 @@ export const LaunchInvite = () => {
           <Section id="confirmar" kicker="Confirmá" title="¿Venís con hambre?">
             <LaunchRsvp guess={guess} />
           </Section>
-          <footer className="px-6 pb-16 pt-6 text-center">
-            <p className="text-2xl font-semibold tracking-tight">{LAUNCH_EVENT.dateLabel}. Traé hambre.</p>
-            <p className="mt-2 text-sm opacity-70">Lo que es, se revela en persona.</p>
+          <footer className="flex justify-center px-6 pb-16 pt-6">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-lanzamiento.png"
+              alt="Space Mark"
+              className="h-auto w-56 drop-shadow-[0_2px_6px_rgba(88,57,41,0.35)] sm:w-64"
+            />
           </footer>
         </>
       ) : null}
