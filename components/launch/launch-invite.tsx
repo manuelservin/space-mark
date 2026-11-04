@@ -24,6 +24,11 @@ const HEAT_STOPS: [number, number, number][] = [
 // Fracción del scroll en la que el fondo ya llega a rojo pleno.
 const HEAT_FULL_AT = 1
 
+// Escalones de scroll que mueven el fondo. Cada cambio de fondo obliga a recomponer todas las
+// tarjetas con backdrop-blur; hacerlo en cada frame hace que Safari de iPhone se quede sin memoria
+// y mate la pestaña. La transición de color del <main> suaviza los saltos entre escalones.
+const SCROLL_STEPS = 40
+
 const heatColor = (heat: number): string => {
   const scaled = Math.min(1, Math.max(0, heat)) * (HEAT_STOPS.length - 1)
   const index = Math.min(HEAT_STOPS.length - 2, Math.floor(scaled))
@@ -60,7 +65,8 @@ export const LaunchInvite = () => {
     const update = () => {
       frame.current = 0
       const max = document.documentElement.scrollHeight - window.innerHeight
-      setScroll(max <= 0 ? 0 : window.scrollY / max)
+      // Si el escalón no cambió, React no re-renderiza y el fondo no se repinta.
+      setScroll(max <= 0 ? 0 : Math.round((window.scrollY / max) * SCROLL_STEPS) / SCROLL_STEPS)
     }
     const handleScroll = () => {
       if (frame.current === 0) {
@@ -95,7 +101,7 @@ export const LaunchInvite = () => {
 
   return (
     <main
-      className={`min-h-screen text-[#1d2a3a] transition-colors duration-[1800ms] ease-out${melted ? '' : 'h-svh overflow-hidden'}`}
+      className={`min-h-screen text-[#1d2a3a] transition-colors duration-[1800ms] ease-out${melted ? '' : ' h-svh overflow-hidden'}`}
       style={{ backgroundColor: background }}
     >
       <FrostReveal onMelt={() => setMelted(true)}>
