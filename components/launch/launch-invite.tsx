@@ -9,13 +9,20 @@ import { LaunchRsvp } from '@/components/launch/launch-rsvp'
 import { OvenCountdown } from '@/components/launch/oven-countdown'
 import { LAUNCH_EVENT } from '@/lib/launch/config'
 
-// Hielo → crema → dorado → horno.
+// Hielo → crema → manteca → ámbar → naranja → brasa → rojo (#ff0000).
+// Muchos pasos cortos para que el calor suba de a poco, como a fuego lento.
 const HEAT_STOPS: [number, number, number][] = [
   [207, 227, 250],
   [246, 231, 176],
-  [242, 184, 75],
-  [224, 112, 42],
+  [248, 214, 140],
+  [246, 182, 92],
+  [243, 140, 52],
+  [238, 84, 30],
+  [255, 0, 0],
 ]
+
+// Fracción del scroll en la que el fondo ya llega a rojo pleno.
+const HEAT_FULL_AT = 1
 
 const heatColor = (heat: number): string => {
   const scaled = Math.min(1, Math.max(0, heat)) * (HEAT_STOPS.length - 1)
@@ -69,7 +76,10 @@ export const LaunchInvite = () => {
   }, [])
 
   // Al descongelar saltamos directo a crema: entre hielo y crema el RGB intermedio queda grisáceo.
-  const heat = melted ? 1 / 3 + scroll * (2 / 3) : 0
+  // Ease-in: arranca tibio y el calor se va juntando de a poco hasta llegar a rojo al final.
+  const warmth = Math.min(1, scroll / HEAT_FULL_AT) ** 1.6
+  const warmStops = HEAT_STOPS.length - 2
+  const heat = melted ? (1 + warmth * warmStops) / (warmStops + 1) : 0
   const background = heatColor(heat)
 
   useEffect(() => {
@@ -85,7 +95,7 @@ export const LaunchInvite = () => {
 
   return (
     <main
-      className={`min-h-screen text-[#1d2a3a] transition-colors duration-700 ${melted ? '' : 'h-svh overflow-hidden'}`}
+      className={`min-h-screen text-[#1d2a3a] transition-colors duration-[1800ms] ease-out${melted ? '' : 'h-svh overflow-hidden'}`}
       style={{ backgroundColor: background }}
     >
       <FrostReveal onMelt={() => setMelted(true)}>
