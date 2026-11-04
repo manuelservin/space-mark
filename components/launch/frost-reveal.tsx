@@ -22,6 +22,8 @@ const BRUSH_RADIUS = 44
 const BRUSH_STRENGTH = 0.2
 const MELT_DURATION = 2200
 const MAX_BLUR = 9
+// Lo que tarda el canvas en desvanecerse (duration-700) más un margen.
+const CANVAS_FADE_MS = 800
 
 // Mide qué porcentaje de la escarcha ya se derritió, muestreando una grilla.
 const measureCleared = (ctx: CanvasRenderingContext2D, width: number, height: number): number => {
@@ -120,6 +122,10 @@ export const FrostReveal = (props: FrostRevealProps) => {
   const [painted, setPainted] = useState(false)
   const [progress, setProgress] = useState(0)
   const [phase, setPhase] = useState<Phase>('frozen')
+  // Una vez que terminó de desvanecerse sacamos el canvas: invisible igual ocupa un bitmap de
+  // pantalla completa (más su copia en RAM por willReadFrequently) y en iPhone eso suma para que
+  // Safari mate la pestaña.
+  const [canvasGone, setCanvasGone] = useState(false)
   const onMelt = useRef(attrs.onMelt)
   onMelt.current = attrs.onMelt
 
@@ -145,7 +151,7 @@ export const FrostReveal = (props: FrostRevealProps) => {
     let lastWidth = window.innerWidth
     const handleResize = () => {
       // En mobile la barra del navegador cambia el alto al scrollear: solo repintamos si cambia el ancho.
-      if (window.innerWidth !== lastWidth) {
+      if (canvas.isConnected && window.innerWidth !== lastWidth) {
         lastWidth = window.innerWidth
         paint()
       }
@@ -154,6 +160,14 @@ export const FrostReveal = (props: FrostRevealProps) => {
     return () => window.removeEventListener('resize', handleResize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (phase !== 'melted') {
+      return
+    }
+    const timer = window.setTimeout(() => setCanvasGone(true), CANVAS_FADE_MS)
+    return () => window.clearTimeout(timer)
+  }, [phase])
 
   const melt = () => {
     if (phase !== 'frozen') {
@@ -231,24 +245,26 @@ export const FrostReveal = (props: FrostRevealProps) => {
       >
         {attrs.children}
       </div>
-      <canvas
-        ref={canvasRef}
-        aria-hidden="true"
-        onPointerDown={(event) => {
-          lastPoint.current = null
-          scrape(event)
-        }}
-        onPointerMove={handlePointerMove}
-        onPointerUp={() => {
-          lastPoint.current = null
-        }}
-        onPointerLeave={() => {
-          lastPoint.current = null
-        }}
-        className={`absolute inset-0 size-full touch-none transition-opacity duration-700 ${
-          painted ? '' : 'bg-[linear-gradient(135deg,#d6eaff,#96c0ec,#c4e0fc)]'
-        } ${phase === 'frozen' ? 'cursor-crosshair' : 'pointer-events-none'} ${phase === 'melted' ? 'opacity-0' : 'opacity-100'}`}
-      />
+      {canvasGone ? null : (
+        <canvas
+          ref={canvasRef}
+          aria-hidden="true"
+          onPointerDown={(event) => {
+            lastPoint.current = null
+            scrape(event)
+          }}
+          onPointerMove={handlePointerMove}
+          onPointerUp={() => {
+            lastPoint.current = null
+          }}
+          onPointerLeave={() => {
+            lastPoint.current = null
+          }}
+          className={`absolute inset-0 size-full touch-none transition-opacity duration-700 ${
+            painted ? '' : 'bg-[linear-gradient(135deg,#d6eaff,#96c0ec,#c4e0fc)]'
+          } ${phase === 'frozen' ? 'cursor-crosshair' : 'pointer-events-none'} ${phase === 'melted' ? 'opacity-0' : 'opacity-100'}`}
+        />
+      )}
       {phase === 'frozen' ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-8 flex flex-col items-center gap-3 px-6 text-center text-[#1d3557]">
           <p className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur">
